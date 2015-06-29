@@ -2,20 +2,44 @@
 
 import time
 
-def niceprint(data = {}, keyprintstr="%s%-30s: %s",shift=""):
-    for k,v in data.iteritems():
-        if type(v) == type({}):
-            print keyprintstr % (shift, k, "")
-            niceprint(v, shift="%s  " % (shift))
-            continue
-        if type(v) == type([]):
-            for i,item in enumerate(v):
-                print "\n%s == Item: %i ==" % (shift, i)
-                niceprint(item, shift="%s  " % (shift))
-            print
-            continue
+class NicePrint():
+    
+    class LineLimitReached:
+        pass
         
-        print keyprintstr % (shift, k,v)
+    def __init__(self, data = {}, keyprintstr="%s%-30s: %s", linelimit=-1):
+        self.keyprintstr = keyprintstr
+        self.linelimit   = linelimit
+        self.linecnt     = 0
+        self.shift       = ""
+        
+        try:
+            self.doPrint(data)
+        except self.LineLimitReached:
+            return
+        
+    def doPrint(self, data):
+        for k,v in data.iteritems():
+            if self.linelimit > 0 and self.linecnt >= self.linelimit: raise self.LineLimitReached
+            
+            if type(v) == type({}):
+                print self.keyprintstr % (self.shift, k, "")
+                self.linecnt += 1
+                self.shift = "%s  " % (self.shift) 
+                self.doPrint(v)
+                continue
+            
+            if type(v) == type([]):
+                for i,item in enumerate(v):
+                    print "\n%s == Item: %i ==" % (self.shift, i)
+                    self.linecnt += 1
+                    self.shift = "%s  " % (self.shift)
+                    self.doPrint(item)
+                print
+                continue
+            
+            print self.keyprintstr % (self.shift, k,v)
+            self.linecnt+=1
 
 def arrayArgs(args):
         x = args.split(" ")
@@ -36,6 +60,7 @@ def periodic(f, sleeptime):
             return
             
 if __name__ == "__main__":
-    niceprint({"a":"4", "b":"5", "c": {"x":5, "y":3} })
-    
+    NicePrint({"a":"4", "b":"5", "c": {"x":5, "y":3} })
+    print
+    NicePrint({"a":"4", "b":"5", "c": {"x":5, "y":3} }, linelimit=2)
     
