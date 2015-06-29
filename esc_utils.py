@@ -30,10 +30,10 @@ class NicePrint():
                 continue
             
             if type(v) == type([]):
+                self.shift = "%s  " % (self.shift)
                 for i,item in enumerate(v):
                     print "\n%s == Item: %i ==" % (self.shift, i)
                     self.linecnt += 1
-                    self.shift = "%s  " % (self.shift)
                     self.doPrint(item)
                 print
                 continue
