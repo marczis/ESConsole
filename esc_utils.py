@@ -6,7 +6,13 @@ def niceprint(data = {}, keyprintstr="%s%-30s: %s",shift=""):
     for k,v in data.iteritems():
         if type(v) == type({}):
             print keyprintstr % (shift, k, "")
-            niceprint(v, shift="%s  " % shift)
+            niceprint(v, shift="%s  " % (shift))
+            continue
+        if type(v) == type([]):
+            for i,item in enumerate(v):
+                print "\n%s == Item: %i ==" % (shift, i)
+                niceprint(item, shift="%s  " % (shift))
+            print
             continue
         
         print keyprintstr % (shift, k,v)
