@@ -4,6 +4,7 @@ import cmd
 import elasticsearch
 import sys
 import argparse
+import re
 
 import esc_utils
 from test.test_support import args_from_interpreter_flags
@@ -81,7 +82,7 @@ class ESCPrompt(cmd.Cmd):
             print self.es.cat.shards()
         else:
             for line in self.es.cat.shards().splitlines(): 
-                if (filter(None, line.split(" "))[3] == pargs.state.upper()): #Magic Do not touch
+                if re.match(pargs.state.upper(), filter(None, line.split(" "))[3]): #Magic Do not touch
                     print line
 
     def do_nodes_list(self, args):
