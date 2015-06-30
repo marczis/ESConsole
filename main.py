@@ -86,7 +86,7 @@ class ESCPrompt(cmd.Cmd):
                     print line
 
     def do_nodes_list(self, args):
-        esc_utils.NicePrint(self.es.cat.nodes())
+        print "%s" % (self.es.cat.nodes())
 
     def do_search_index(self, args):
         """ Search the elasticsearch for a given index name """
