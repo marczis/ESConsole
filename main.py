@@ -85,6 +85,25 @@ class ESCPrompt(cmd.Cmd):
                 if re.match(pargs.state.upper(), filter(None, line.split(" "))[3]): #Magic Do not touch
                     print line
 
+    def shards_show_recovery(self, linelimit):
+        esc_utils.NicePrint(self.es.cat.recovery(), linelimit = linelimit)
+        
+    def do_shards_show_recovery(self, args):
+        try:
+            parser = argparse.ArgumentParser(prog="shards_show_recovery")
+            parser.add_argument("-c", action="store_true", help="Do periodic query, use -t to set sleep time")
+            parser.add_argument("-t", type=int, help="seconds between two query, use with -c", default=1)
+            parser.add_argument("-l", type=int, help="Number of lines to print", default=-1)
+            pargs = parser.parse_args(esc_utils.arrayArgs(args))
+        except:
+            return
+        
+        if pargs.c:
+            esc_utils.periodic(lambda: self.shards_show_recovery(pargs.l), pargs.t)
+            return
+        
+        self.shards_show_recovery(pargs.l)
+
     def do_nodes_list(self, args):
         print "%s" % (self.es.cat.nodes())
 
