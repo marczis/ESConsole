@@ -6,8 +6,12 @@ import sys
 import argparse
 import re
 import logging
+import time
+import readline
+import os
 
 import esc_utils
+
 
 #TODO get python logger for elasticsearch
 #Ideas:
@@ -32,10 +36,36 @@ class ESCPrompt(cmd.Cmd):
         except ValueError:
             print "Possible levels: CRITICAL, ERROR, WARNING, INFO, DEBUG - case ignored"
 
+    def do_thread_info(self, args):
+        try:
+            parser = argparse.ArgumentParser(prog="thread_info")
+            parser.add_argument("-f", nargs="+", help="fields to show", default=[])
+            parser.add_argument("--listfields",action="store_true", help="list available fields" )
+            pargs = parser.parse_args(esc_utils.arrayArgs(args))
+        except:
+            return
+        
+        if pargs.listfields:
+            esc_utils.NicePrint(self.es.cat.thread_pool(params={"help":True, "v":True}))
+            return
+            
+        if pargs.f:
+            esc_utils.NicePrint(self.es.cat.thread_pool(params={"v": True, "h": ",".join(pargs.f)}))
+            return
+        
+        esc_utils.NicePrint(self.es.cat.thread_pool(params={"v": True}))
+        
+
     def do_info(self, args=""):
         """ Get basic cluster info """
         esc_utils.NicePrint(self.es.info())
 
+#    def do_segments_list(self, args):
+        #""" List Lucene segments per index. """
+#        esc_utils.NicePrint(self.es.cat.segments())
+#I don't have it in my version, api doc says it should be here ... ???
+
+        
     def do_cluster_get_settings(self, args):
         """ Returns cluster settings. """
         esc_utils.NicePrint(self.es.cluster.get_settings())
@@ -83,16 +113,54 @@ class ESCPrompt(cmd.Cmd):
         try:
             parser = argparse.ArgumentParser(prog="shards_list")
             parser.add_argument("--state", default="all", help="Filter for given status like: started, unassigned ..etc")
+            parser.add_argument("--index", default=[], help="List of index names to filter for", nargs="+")
             pargs = parser.parse_args(esc_utils.arrayArgs(args))
         except:
             return
         
+        params = {"v":True}
+        if pargs.index:
+            params["index"] = ",".join(pargs.index)
+        
         if pargs.state == "all":
-            print self.es.cat.shards()
+            print self.es.cat.shards(params=params)
         else:
-            for line in self.es.cat.shards().splitlines(): 
+            header=True
+            for line in self.es.cat.shards(params=params).splitlines():
+                if header: 
+                    print line
+                    header = False
+                    continue 
                 if re.match(pargs.state.upper(), filter(None, line.split(" "))[3]): #Magic Do not touch
                     print line
+                    
+    def do_cluster_set_disable_allocation(self, args):
+        """ Set disable_allocation to true / false, feel the negative logic here ! """
+        if type(args) == str:
+            esc_utils.NicePrint(self.es.cluster.put_settings('{"transient":{"cluster.routing.allocation.disable_allocation": %s}}' % (args)))
+            return
+        
+        print "Possible vaules: true / false"
+        
+    def do_levitate_allocation(self, args):
+        """ Okay, it's a stupid hack, if your cluster is pilling up the pending tasks after restart, you may use this than to limit the pending tasks """
+        try:
+            parser = argparse.ArgumentParser(prog="levitate_allocation")
+            parser.add_argument("-e", required=True, type=int, help="seconds to keep the allocation enabled")
+            parser.add_argument("-d", required=True, type=int, help="seconds to keep the allocation disabled, usually ~10 sec is enough to flush the pending tasks")
+            pargs = parser.parse_args(esc_utils.arrayArgs(args))
+        except:
+            return
+        
+        try:
+            while True:
+                self.do_cluster_set_disable_allocation("true")
+                time.sleep(pargs.d)
+                self.do_cluster_set_disable_allocation("false")
+                time.sleep(pargs.e)
+        except KeyboardInterrupt:
+            self.do_cluster_set_disable_allocation("false")
+            
 
     def shards_show_recovery(self, linelimit):
         esc_utils.NicePrint(self.es.cat.recovery(), linelimit = linelimit)
@@ -133,15 +201,43 @@ class ESCPrompt(cmd.Cmd):
     def do_quit(self, args):
         """ESCAPE FROM ESC :D"""
         print "Quitting."
+        readline.write_history_file("%s/.esc_history" % os.environ['HOME'])
         raise SystemExit
 
     def do_q(self, args):
         """ Shorty for for quit. """
         self.do_quit(args)
+        
 
+    def do_history(self, args):
+        try:
+            parser = argparse.ArgumentParser(prog="history")
+            parser.add_argument("-c", action="store_true", help="clear history")
+            pargs = parser.parse_args(esc_utils.arrayArgs(args))
+        except:
+            return
+        
+        if (pargs.c):
+            readline.clear_history()
+            return
+        
+        for i in xrange(1, readline.get_current_history_length()):
+            print "%i: %s" % (i, readline.get_history_item(i))
+            
+    def do_redo(self, args):
+        try:
+            self.onecmd(readline.get_history_item(int(args)))
+            return
+        except ValueError:
+            print "Give the index of the history, so I can re-do that command for you"
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.ERROR)
+    try:
+        readline.read_history_file("%s/.esc_history" % os.environ['HOME'])
+    except IOError:
+        pass
+    readline.set_history_length(100) #TODO should come from config file
     prompt = ESCPrompt(sys.argv[1:])
     while True:
         try: 
