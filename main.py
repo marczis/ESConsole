@@ -19,14 +19,9 @@ import esc_utils
 
 class ESCPrompt(cmd.Cmd):
     prompt = "ESC> "
-    def __init__(self, hosts=["localhost:9200"], completekey='tab', stdin=None, stdout=None):
+    def __init__(self, hosts="localhost:9200", completekey='tab', stdin=None, stdout=None):
         cmd.Cmd.__init__(self, completekey=completekey, stdin=stdin, stdout=stdout)
-        self.hosts = hosts
-        if not self.hosts:
-            self.hosts = ["localhost:9200"]
-        self.es = elasticsearch.Elasticsearch(self.hosts)
-        ESCPrompt.prompt = "ESC %s > " % (self.hosts)
-        
+        self.do_connect(hosts)
 
     def do_set_loglevel(self, args):
         """ Setup the log level, possible values: CRITICAL, ERROR, WARNING, INFO, DEBUG """
@@ -136,8 +131,8 @@ class ESCPrompt(cmd.Cmd):
                     
     def do_cluster_set_disable_allocation(self, args):
         """ Set disable_allocation to true / false, feel the negative logic here ! """
-        if type(args) == str:
-            esc_utils.NicePrint(self.es.cluster.put_settings('{"transient":{"cluster.routing.allocation.disable_allocation": %s}}' % (args)))
+        if args.lower() in [ "true", "false" ]:
+            esc_utils.NicePrint(self.es.cluster.put_settings('{"transient":{"cluster.routing.allocation.disable_allocation": %s}}' % (args.lower)))
             return
         
         print "Possible vaules: true / false"
@@ -231,6 +226,40 @@ class ESCPrompt(cmd.Cmd):
         except ValueError:
             print "Give the index of the history, so I can re-do that command for you"
 
+    def do_connect(self, args):
+        try:
+            parser = argparse.ArgumentParser(prog="connect")
+        #    parser.add_argument("-c", action="store_true", help="Do periodic query, use -t to set sleep time")
+            parser.add_argument("target", nargs="+")
+            pargs = parser.parse_args(esc_utils.arrayArgs(args))
+        except:
+            return
+        
+        self.hosts = pargs.target
+        self.es = elasticsearch.Elasticsearch(self.hosts)
+        ESCPrompt.prompt = "ESC %s > " % (self.hosts)
+
+    def do_nodes_allocation(self, args):
+        try:
+            parser = argparse.ArgumentParser(prog="nodes_allocation")
+            parser.add_argument("-e", action="store_true", help="Exclude nodes from allocation")
+            parser.add_argument("-d", action="store_true", help="Empty exclude list")
+            parser.add_argument("--nodes", help="comma separated list of ips of nodes")
+            pargs = parser.parse_args(esc_utils.arrayArgs(args))
+        except:
+            return
+        
+        if pargs.e:
+            esc_utils.NicePrint(self.es.cluster.put_settings('{ "transient" :{"cluster.routing.allocation.exclude._ip" : "%s" }}' % (pargs.nodes)))
+            return
+            
+        if pargs.d:
+            esc_utils.NicePrint(self.es.cluster.put_settings('{ "transient" :{"cluster.routing.allocation.exclude._ip" : "" }}'))
+            return
+        
+    def do_clear(self, args):
+        print "\033[2J"
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.ERROR)
     try:
@@ -238,7 +267,7 @@ if __name__ == '__main__':
     except IOError:
         pass
     readline.set_history_length(100) #TODO should come from config file
-    prompt = ESCPrompt(sys.argv[1:])
+    prompt = ESCPrompt(sys.argv[1])
     while True:
         try: 
             prompt.cmdloop('Welcome to the ESConsole !')
