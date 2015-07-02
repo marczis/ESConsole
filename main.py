@@ -5,9 +5,9 @@ import elasticsearch
 import sys
 import argparse
 import re
+import logging
 
 import esc_utils
-from test.test_support import args_from_interpreter_flags
 
 #TODO get python logger for elasticsearch
 #Ideas:
@@ -22,6 +22,15 @@ class ESCPrompt(cmd.Cmd):
             self.hosts = ["localhost:9200"]
         self.es = elasticsearch.Elasticsearch(self.hosts)
         ESCPrompt.prompt = "ESC %s > " % (self.hosts)
+        
+
+    def do_set_loglevel(self, args):
+        """ Setup the log level, possible values: CRITICAL, ERROR, WARNING, INFO, DEBUG """
+        if type(args) != str: return
+        try:
+            logging.getLogger().setLevel(args.upper())
+        except ValueError:
+            print "Possible levels: CRITICAL, ERROR, WARNING, INFO, DEBUG - case ignored"
 
     def do_info(self, args=""):
         """ Get basic cluster info """
@@ -132,9 +141,14 @@ class ESCPrompt(cmd.Cmd):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.ERROR)
     prompt = ESCPrompt(sys.argv[1:])
-    try: 
-        prompt.cmdloop('Welcome to the ESConsole !')
-    except KeyboardInterrupt:
-        prompt.do_quit("")
+    while True:
+        try: 
+            prompt.cmdloop('Welcome to the ESConsole !')
+        except KeyboardInterrupt:
+            prompt.do_quit("")
+        except elasticsearch.exceptions.ConnectionError:
+            print "Connection error."
+            pass
 
