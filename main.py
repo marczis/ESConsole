@@ -132,7 +132,7 @@ class ESCPrompt(cmd.Cmd):
     def do_cluster_set_disable_allocation(self, args):
         """ Set disable_allocation to true / false, feel the negative logic here ! """
         if args.lower() in [ "true", "false" ]:
-            esc_utils.NicePrint(self.es.cluster.put_settings('{"transient":{"cluster.routing.allocation.disable_allocation": %s}}' % (args.lower)))
+            esc_utils.NicePrint(self.es.cluster.put_settings('{"transient":{"cluster.routing.allocation.disable_allocation": %s}}' % (args.lower())))
             return
         
         print "Possible vaules: true / false"
