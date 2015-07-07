@@ -7,39 +7,36 @@ class NicePrint():
     class LineLimitReached:
         pass
         
-    def __init__(self, data = {}, keyprintstr="%s%-30s: %s", linelimit=-1):
+    def __init__(self, data = {}, keyprintstr="%s%-30s %s", linelimit=-1):
         self.keyprintstr = keyprintstr
         self.linelimit   = linelimit
         self.linecnt     = 0
-        self.shift       = ""
         
         try:
-            self.doPrint(data)
+            self.doPrint(data, "")
         except self.LineLimitReached:
             return
         
-    def doPrint(self, data):
+    def doPrint(self, data, shift):
         if type(data) == dict or type(data) == list:
             for k,v in data.iteritems():
                 if self.linelimit > 0 and self.linecnt >= self.linelimit: raise self.LineLimitReached
                 
                 if type(v) == dict:
-                    print self.keyprintstr % (self.shift, k, "")
+                    print self.keyprintstr % (shift, k, "")
                     self.linecnt += 1
-                    self.shift = "%s  " % (self.shift) 
-                    self.doPrint(v)
+                    self.doPrint(v, "%s  " % (shift))
                     continue
                 
                 if type(v) == list:
-                    self.shift = "%s  " % (self.shift)
                     for i,item in enumerate(v):
-                        print "\n%s == Item: %i ==" % (self.shift, i)
+                        print "\n  %s == Item: %i ==" % (shift, i)
                         self.linecnt += 1
-                        self.doPrint(item)
+                        self.doPrint(item, "%s  " % (self.shift))
                     print
                     continue
                 
-                print self.keyprintstr % (self.shift, k,v)
+                print self.keyprintstr % (shift, k,v)
                 self.linecnt+=1
         if type(data) == unicode:
             for line in data.splitlines():
@@ -65,7 +62,18 @@ def periodic(f, sleeptime):
         except KeyboardInterrupt:
             print
             return
-            
+
+def timeit(method): #From the blog of Andreas Jung - https://www.andreas-jung.com/contents/a-python-decorator-for-measuring-the-execution-time-of-methods 
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+
+        print '(Operation took: %.3f sec)' % \
+              (te-ts)
+        return result
+
+    return timed
 if __name__ == "__main__":
     NicePrint({"a":"4", "b":"5", "c": {"x":5, "y":3} })
     print

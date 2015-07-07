@@ -109,6 +109,7 @@ class ESCPrompt(cmd.Cmd):
             parser = argparse.ArgumentParser(prog="shards_list")
             parser.add_argument("--state", default="all", help="Filter for given status like: started, unassigned ..etc")
             parser.add_argument("--index", default=[], help="List of index names to filter for", nargs="+")
+            parser.add_argument("--grep", default=[], help="grep output with python regexp")
             pargs = parser.parse_args(esc_utils.arrayArgs(args))
         except:
             return
@@ -117,7 +118,7 @@ class ESCPrompt(cmd.Cmd):
         if pargs.index:
             params["index"] = ",".join(pargs.index)
         
-        if pargs.state == "all":
+        if pargs.state == "all" and not pargs.grep:
             print self.es.cat.shards(params=params)
         else:
             header=True
@@ -125,10 +126,25 @@ class ESCPrompt(cmd.Cmd):
                 if header: 
                     print line
                     header = False
-                    continue 
-                if re.match(pargs.state.upper(), filter(None, line.split(" "))[3]): #Magic Do not touch
+                    continue
+                if pargs.state != "all" and re.match(pargs.state.upper(), filter(None, line.split(" "))[3]): #Magic Do not touch
                     print line
-                    
+                if pargs.grep and re.match(pargs.grep, line):
+                    print line
+    
+    def precmd(self, line):
+        self.cmd_started=time.time()
+        return line
+    
+    def postcmd(self, stop, line):
+        self.cmd_stoped=time.time()
+        print "(took: %.3f sec)" % (self.cmd_stoped - self.cmd_started)
+        return line
+    
+    def do_index_get_settings(self,args="_all"):
+        """ Get's settings of all or some indices """
+        esc_utils.NicePrint(self.es.indices.get_settings(args))
+            
     def do_cluster_set_disable_allocation(self, args):
         """ Set disable_allocation to true / false, feel the negative logic here ! """
         if args.lower() in [ "true", "false" ]:
@@ -270,7 +286,7 @@ if __name__ == '__main__':
     prompt = ESCPrompt(sys.argv[1])
     while True:
         try: 
-            prompt.cmdloop('Welcome to the ESConsole !')
+            prompt.cmdloop()
         except KeyboardInterrupt:
             prompt.do_quit("")
         except elasticsearch.exceptions.ConnectionError:
