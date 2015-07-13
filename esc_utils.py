@@ -32,7 +32,7 @@ class NicePrint():
                     for i,item in enumerate(v):
                         print "\n  %s == Item: %i ==" % (shift, i)
                         self.linecnt += 1
-                        self.doPrint(item, "%s  " % (self.shift))
+                        self.doPrint(item, "%s  " % (shift))
                     print
                     continue
                 

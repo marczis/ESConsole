@@ -132,6 +132,27 @@ class ESCPrompt(cmd.Cmd):
                 if pargs.grep and re.match(pargs.grep, line):
                     print line
     
+    def do_cluster_put_settings(self, args):
+        """ Change cluster settings, default to transistent, use -p for persistent changes """
+        try:
+            parser = argparse.ArgumentParser(prog="cluster_put_settings")
+            parser.add_argument("-p", action="store_true", help="persistent")
+            parser.add_argument("key", help="setting to change")
+            parser.add_argument("value", help="value")
+            pargs = parser.parse_args(esc_utils.arrayArgs(args))
+        except:
+            return
+        
+        typ = "transient"
+        if pargs.p:
+            typ = "persistent"
+        req = '{ "%s": { "%s" : %s }}' % (typ, pargs.key, pargs.value)
+        
+        esc_utils.NicePrint(self.es.cluster.put_settings(req))
+        
+    def do_nodes_info(self, args):
+        esc_utils.NicePrint(self.es.nodes.info())
+            
     def precmd(self, line):
         self.cmd_started=time.time()
         return line
